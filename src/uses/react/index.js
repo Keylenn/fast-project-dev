@@ -8,5 +8,3 @@
 function useReact() {}
 
 module.exports = useReact;
-
-// 把这个注册到use command的action里面

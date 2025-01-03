@@ -1,22 +1,15 @@
-const fs = require("fs");
-const path = require("path");
-const fswin = require("fswin");
+const fs = require("fs-extra");
+const { dirname, basename } = require("path");
+const paths = require("./paths");
 
 function readFile(file, options = {}) {
-  const { createWhenNotExist, initialContent = "", hidden } = options;
-  try {
-    if (createWhenNotExist) fs.accessSync(file, fs.constants.F_OK);
-  } catch (error) {
-    const dirPath = path.dirname(file);
+  const { createWhenNotExist, initialContent = "" } = options;
+  if (createWhenNotExist && fs.existsSync(file) === false) {
+    const dirPath = dirname(file);
     fs.mkdirSync(dirPath, { recursive: true });
     fs.writeFileSync(file, initialContent);
-
-    if (hidden) {
-      fswin.setAttributesSync(dirPath, { IS_HIDDEN: true });
-    }
-  } finally {
-    return fs.readFileSync(file, "utf-8");
   }
+  return fs.readFileSync(file, "utf-8");
 }
 
 function editFile(file, contentOrCallback, options) {
@@ -24,10 +17,10 @@ function editFile(file, contentOrCallback, options) {
     typeof contentOrCallback === "function"
       ? contentOrCallback(readFile(file, options))
       : contentOrCallback;
-  fs.writeFileSync(file, callback(content), "utf-8");
+  fs.writeFileSync(file, content, "utf-8");
 }
 
-function readJSON(file, options = {}) {
+function readJson(file, options = {}) {
   return JSON.parse(
     readFile(file, {
       ...options,
@@ -36,17 +29,57 @@ function readJSON(file, options = {}) {
   );
 }
 
-function editJSON(file, contentOrCallback, options) {
+function editJson(file, contentOrCallback, options) {
   const content =
     typeof contentOrCallback === "function"
-      ? contentOrCallback(readJSON(file, options))
+      ? contentOrCallback(readJson(file, options))
       : contentOrCallback;
   fs.writeFileSync(file, JSON.stringify(content, null, 2), "utf-8");
+}
+
+const DEFAULT_PKG_JSON = {
+  version: "0.1.0",
+  description: "",
+  scripts: {},
+};
+
+function editPkgJson(callabck, options) {
+  return editJson(
+    paths.appPkgJson,
+    (json) => {
+      const pkgJSON = {
+        name: basename(paths.appPath),
+        ...DEFAULT_PKG_JSON,
+      };
+
+      const newJSON = typeof callabck === "function" ? callabck(json) : json;
+
+      return {
+        ...pkgJSON,
+        ...newJSON,
+      };
+    },
+    {
+      createWhenNotExist: true,
+      ...options,
+    }
+  );
+}
+
+const ensurePkgJson = () => editPkgJson();
+
+function mkdirSync(dir, options) {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, options);
+  }
 }
 
 module.exports = {
   readFile,
   editFile,
-  readJSON,
-  editJSON,
+  readJson,
+  editJson,
+  editPkgJson,
+  ensurePkgJson,
+  mkdirSync,
 };

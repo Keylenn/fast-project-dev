@@ -3,7 +3,7 @@
 const { Command } = require("commander");
 const program = new Command();
 
-const fs = require("fs");
+const fs = require("fs-extra");
 const path = require("path");
 
 const commandDir = path.join(__dirname, "../src/command");
