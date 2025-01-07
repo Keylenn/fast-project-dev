@@ -1,7 +1,9 @@
-const { mkdirSync, editPkgJson } = require("../../helper/file");
-const { editCacheConfig } = require("../../helper/util");
-
-const paths = require("../../helper/paths");
+const {
+  editPkgJson,
+  resolvePath,
+  appPath,
+  editFpdCacheConfig,
+} = require("fpd-utils");
 const fs = require("fs-extra");
 
 const relatedPackageMap = {
@@ -11,36 +13,33 @@ const relatedPackageMap = {
     server: "webpack-dev-server",
     htmlPlugin: "html-webpack-plugin",
     cleanPlugin: "clean-webpack-plugin",
+    env: "cross-env",
+    utils: "fpd-utils",
   },
 };
 
-function useWebpack(commandConfig) {
-  const templatePath = "template";
-  fs.copySync(
-    paths.resolvePath(templatePath, { dir: __dirname }),
-    paths.appPath,
-    {
-      dereference: true,
-      overwrite: false,
-    }
-  );
+function useWebpack() {
+  fs.copySync(resolvePath("template", { dir: __dirname }), appPath, {
+    dereference: true,
+    overwrite: false,
+  });
 
   editPkgJson((json) => {
     const scripts = {
       ...json.scripts,
     };
     scripts[scripts.dev ? "dev:webpack" : "dev"] =
-      "webpack serve --config config/webpack.config.js --mode=development";
+      "cross-env NODE_ENV=dev webpack serve";
 
     scripts[scripts.build ? "build:webpack" : "build"] =
-      "webpack --config config/webpack.config.js --mode=production";
+      "cross-env NODE_ENV=prod webpack";
     return {
       ...json,
       scripts,
     };
   });
 
-  editCacheConfig((c) => {
+  editFpdCacheConfig((c) => {
     if (!c.buildPlatform) c.buildPlatform = [];
 
     return {

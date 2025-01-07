@@ -1,6 +1,10 @@
 const exec = require("exec-sh");
-const { readJson, editJson, editFile } = require("./file");
-const paths = require("./paths");
+const {
+  editFile,
+  getFpdCacheConfig,
+  resolvePath,
+  editFpdCacheConfig,
+} = require("fpd-utils");
 const fs = require("fs-extra");
 
 function execPromise(sh) {
@@ -8,45 +12,14 @@ function execPromise(sh) {
   return exec.promise(sh);
 }
 
-const gitignoreContent = `
-node_modules
-.DS_Store
-*.log
-.cache
-.history`;
-
-const baseCommandOptions = (program) =>
-  program
-    .option(
-      "-m, --package-manager <packageManager>",
-      "Specifying a package management"
-    )
-    .option(
-      "-p, --build-platform <buildPlatform>",
-      "The platform that the project is used to build packaging"
-    )
-    .option("-c, --compiler <compiler>", "The project compiler")
-    .option("-r, --registry <registry>", "The npm registry source")
-    .option("-ts, --typescript", "Development with typescipt");
-
-const readCacheConfig = () =>
-  readJson(paths.fpdConfigJson, {
-    createWhenNotExist: true,
-  });
+const gitignoreContent = `node_modules\n.DS_Store\n*.log\n.cache\n.history`;
 
 function getCommandConfig(program) {
-  const config = readCacheConfig();
-
   return {
-    packageManager: "npm",
-    registry: "https://registry.npmmirror.com/",
-    ...config,
+    ...getFpdCacheConfig(),
     ...program.opts(),
   };
 }
-
-const editCacheConfig = (contentOrCallback) =>
-  editJson(paths.fpdConfigJson, contentOrCallback);
 
 const mergeRelatedPackageMap = (source, target) => {
   ["dev", "prod"].forEach((env) => {
@@ -57,18 +30,29 @@ const mergeRelatedPackageMap = (source, target) => {
 const addPackage = async (program, relatedPackageMap) => {
   const commandConfig = getCommandConfig(program);
   const { packageManager, registry } = commandConfig;
+  let empty = true;
   try {
     let shs = [packageManager, "add"];
     if (relatedPackageMap.prod) {
-      shs = shs.concat(Object.values(relatedPackageMap.prod));
+      const pkgs = Object.values(relatedPackageMap.prod);
+      if (pkgs.length) {
+        empty = false;
+        shs = shs.concat(pkgs);
+      }
     }
     if (relatedPackageMap.dev) {
-      shs = shs.concat("-D", Object.values(relatedPackageMap.dev));
+      const devPkgs = Object.values(relatedPackageMap.dev);
+      if (devPkgs.length) {
+        empty = false;
+        shs = shs.concat("-D", devPkgs);
+      }
     }
+
+    if (empty) return;
 
     if (registry) shs.push(`--registry=${registry}`);
 
-    const gitignorePath = paths.resolvePath(".gitignore");
+    const gitignorePath = resolvePath(".gitignore");
     if (!fs.existsSync(gitignorePath)) {
       editFile(gitignorePath, gitignoreContent);
     }
@@ -77,7 +61,7 @@ const addPackage = async (program, relatedPackageMap) => {
   } catch (error) {
     console.log("Error in addPackage", error);
   } finally {
-    editCacheConfig((c) => ({
+    editFpdCacheConfig((c) => ({
       ...c,
       packageManager,
       registry,
@@ -87,10 +71,7 @@ const addPackage = async (program, relatedPackageMap) => {
 
 module.exports = {
   execPromise,
-  baseCommandOptions,
-  readCacheConfig,
-  editCacheConfig,
   getCommandConfig,
-  addPackage,
   mergeRelatedPackageMap,
+  addPackage,
 };

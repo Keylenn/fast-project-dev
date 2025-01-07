@@ -1,19 +1,17 @@
-const path = require("path");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 const { CleanWebpackPlugin } = require("clean-webpack-plugin");
+const fpdUtils = require("fpd-utils");
 
-module.exports = (env, argv) => {
-  const isDevMode = argv.mode === "development";
-  const isProdMode = argv.mode === "production";
-  const nameFormat = `[name]${isDevMode ? "" : ".[contenthash:8]"}`;
+module.exports = () => {
+  const nameFormat = `[name]${fpdUtils.IS_PROD ? ".[contenthash:8]" : ""}`;
 
   const config = {
-    mode: isDevMode ? "development" : "production",
+    mode: fpdUtils.IS_PROD ? "production" : "development",
     entry: {
-      index: path.resolve(__dirname, "../src/index"),
+      index: fpdUtils.resolvePath("src/index"),
     },
     output: {
-      path: path.resolve(__dirname, "../dist"),
+      path: fpdUtils.resolvePath("dist"),
       filename: `js/${nameFormat}.bundle.js`,
       chunkFilename: `js/${nameFormat}.chunk.js`,
       assetModuleFilename: "assets/[hash][ext][query]",
@@ -22,7 +20,7 @@ module.exports = (env, argv) => {
     plugins: [new HtmlWebpackPlugin()],
   };
 
-  if (isDevMode) {
+  if (fpdUtils.IS_DEV) {
     Object.assign(config, {
       cache: { type: "memory" },
       devtool: "eval-cheap-module-source-map",
@@ -35,9 +33,8 @@ module.exports = (env, argv) => {
     });
   }
 
-  if (isProdMode) {
+  if (fpdUtils.IS_PROD) {
     config.plugins.push(new CleanWebpackPlugin());
   }
-
   return config;
 };

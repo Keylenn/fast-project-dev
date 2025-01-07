@@ -1,5 +1,3 @@
-const { execPromise } = require("../helper/util");
-
 function use(program) {
   program
     .command("use")

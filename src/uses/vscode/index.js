@@ -1,17 +1,15 @@
-const { editJson } = require("../../helper/file");
-const { editCacheConfig } = require("../../helper/util");
+const { editJson, resolvePath, editFpdCacheConfig } = require("fpd-utils");
 
-const paths = require("../../helper/paths");
 const fs = require("fs-extra");
 const os = require("os");
 
 function useVscode() {
-  const vscodeExtensionsPath = paths.resolvePath(".vscode/extensions", {
+  const vscodeExtensionsPath = resolvePath(".vscode/extensions", {
     dir: os.homedir(),
   });
 
   editJson(
-    paths.resolvePath(".vscode/settings.json"),
+    resolvePath(".vscode/settings.json"),
     (json) => {
       const newJson = {
         ...json,
@@ -31,7 +29,7 @@ function useVscode() {
     }
   );
 
-  editCacheConfig((c) => {
+  editFpdCacheConfig((c) => {
     if (!c.editor) c.editor = [];
 
     return {
